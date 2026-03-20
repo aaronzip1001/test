@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="家護作息">
+<title>家護作息表</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif; background:#F2F2F7; min-height:100vh; }
+
+#role-screen { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; gap:20px; }
+.role-title    { font-size:28px; font-weight:800; color:#1C1C1E; }
+.role-subtitle { font-size:15px; color:#6C6C70; }
+.role-cards    { display:flex; flex-direction:column; gap:14px; width:100%; max-width:400px; }
+.role-card { background:#fff; border-radius:20px; padding:22px 20px; display:flex; align-items:flex-start; gap:16px; box-shadow:0 2px 10px rgba(0,0,0,0.07); cursor:pointer; border:2px solid transparent; transition:border-color 0.15s; }
+.role-card.employer  { border-color:#BFDBFE; }
+.role-card.caregiver { border-color:#A7F3D0; }
+.role-card:active { transform:scale(0.98); }
+.role-icon { font-size:34px; line-height:1; margin-top:2px; }
+.role-name { font-size:18px; font-weight:700; color:#1C1C1E; }
+.role-desc { font-size:13px; color:#6C6C70; margin-top:3px; }
+.lock-hint { font-size:12px; color:#9CA3AF; margin-top:6px; }
+.lang-row  { display:flex; gap:7px; margin-top:12px; flex-wrap:wrap; }
+.lang-btn { padding:5px 12px; border-radius:16px; border:1px solid #E5E5EA; background:#F2F2F7; font-size:12px; font-weight:600; cursor:pointer; color:#3C3C43; font-family:inherit; }
+.lang-btn.sel { background:#1D9E75; color:#fff; border-color:#1D9E75; }
+
+#app-screen { display:none; flex-direction:column; max-width:480px; margin:0 auto; min-height:100vh; }
+.header { background:#fff; border-bottom:0.5px solid rgba(0,0,0,0.1); padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:20; }
+.header-title { font-size:20px; font-weight:800; color:#1C1C1E; }
+.header-sub   { font-size:12px; color:#6C6C70; margin-top:1px; }
+.header-right { display:flex; align-items:center; gap:8px; }
+.role-badge   { font-size:12px; font-weight:700; padding:4px 12px; border-radius:16px; cursor:pointer; }
+.done-badge   { font-size:13px; font-weight:700; padding:4px 14px; border-radius:16px; background:#F2F2F7; color:#8E8E93; min-width:60px; text-align:center; transition:all 0.3s; }
+.offline-dot  { width:8px; height:8px; border-radius:50%; background:#EF4444; display:none; flex-shrink:0; }
+.offline-dot.show { display:block; }
+
+.progress-bar-area { padding:8px 16px 6px; background:#fff; border-bottom:0.5px solid rgba(0,0,0,0.06); display:flex; align-items:center; gap:10px; }
+.prog-bar-wrap { flex:1; height:5px; background:#F2F2F7; border-radius:3px; overflow:hidden; }
+.prog-bar { height:100%; border-radius:3px; transition:width 0.4s, background 0.4s; }
+.prog-pct { font-size:12px; font-weight:700; min-width:36px; text-align:right; }
+
+.tab-bar { display:flex; background:#fff; border-bottom:0.5px solid rgba(0,0,0,0.08); overflow-x:auto; }
+.tab-bar::-webkit-scrollbar { display:none; }
+.tab-btn { flex:1; min-width:56px; padding:11px 6px; font-size:13px; font-weight:600; color:#8E8E93; background:none; border:none; cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; transition:all 0.15s; white-space:nowrap; }
+.tab-btn.active { color:#1D9E75; border-bottom-color:#1D9E75; }
+
+.content { flex:1; overflow-y:auto; padding:14px 14px 40px; }
+.page { display:none; }
+.page.active { display:block; }
+.card { background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.07); margin-bottom:12px; }
+
+.task-row { display:flex; align-items:center; padding:13px 14px; gap:10px; border-bottom:0.5px solid rgba(0,0,0,0.06); }
+.task-row:last-child { border-bottom:none; }
+.task-row.done { background:#FAFAFA; }
+.time-pill { font-size:12px; font-weight:700; color:#1E40AF; background:#DBEAFE; border-radius:8px; padding:4px 8px; min-width:48px; text-align:center; flex-shrink:0; }
+.task-row.done .time-pill { background:#F2F2F7; color:#9CA3AF; }
+.task-info  { flex:1; min-width:0; }
+.task-name  { font-size:15px; font-weight:600; color:#1C1C1E; }
+.task-trans { font-size:12px; color:#6C6C70; margin-top:2px; }
+.task-row.done .task-name { color:#9CA3AF; text-decoration:line-through; }
+.task-done-time      { font-size:15px; font-weight:700; color:#1D9E75; flex-shrink:0; min-width:52px; text-align:right; }
+.task-done-time.miss { color:#9CA3AF; font-weight:400; font-size:14px; }
+
+.photo-btn { width:32px; height:32px; border-radius:50%; background:#FEF3C7; border:1.5px solid #FCD34D; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; cursor:pointer; transition:transform 0.1s; }
+.photo-btn:active { transform:scale(0.88); }
+.photo-btn.uploaded { background:#D1FAE5; border-color:#6EE7B7; font-size:16px; }
+
+.task-check { width:32px; height:32px; border-radius:50%; border:2px solid #D1D1D6; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; flex-shrink:0; cursor:pointer; transition:all 0.2s; color:transparent; }
+.task-check.checked { background:#1D9E75; border-color:#1D9E75; color:#fff; }
+
+.shortcuts-wrap { display:flex; flex-wrap:wrap; gap:7px; padding:10px 14px; }
+.shortcut-btn { padding:6px 12px; border-radius:16px; background:#F2F2F7; border:1px solid #E5E5EA; font-size:13px; font-weight:600; cursor:pointer; color:#1C1C1E; font-family:inherit; }
+.shortcut-btn.custom { background:#EEF2FF; border-color:#C7D2FE; color:#4338CA; }
+
+.history-row { padding:13px 16px; border-bottom:0.5px solid rgba(0,0,0,0.06); cursor:pointer; }
+.history-row:last-child { border-bottom:none; }
+.history-row.today-row { background:#F0FDF4; }
+.history-row:active { background:#F2F2F7; }
+.history-date { font-size:14px; font-weight:600; color:#1C1C1E; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+.today-tag { font-size:11px; font-weight:700; background:#1D9E75; color:#fff; padding:2px 7px; border-radius:10px; }
+.history-bar-wrap { height:5px; background:#F2F2F7; border-radius:3px; overflow:hidden; margin-bottom:4px; }
+.history-bar { height:100%; border-radius:3px; }
+.history-meta { font-size:12px; color:#6C6C70; }
+.history-detail { display:none; background:#F9F9F9; padding:8px 16px; border-top:0.5px solid rgba(0,0,0,0.06); }
+.history-detail.open { display:block; }
+.detail-row { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13px; color:#1C1C1E; border-bottom:0.5px solid rgba(0,0,0,0.04); }
+.detail-row:last-child { border-bottom:none; }
+.detail-time { font-size:11px; color:#1D9E75; margin-left:auto; font-weight:600; }
+.detail-time.miss { color:#9CA3AF; }
+.detail-clickable { cursor:pointer; }
+.detail-clickable:active { background:#F0FDF4; }
+.detail-toggle { font-size:11px; font-weight:600; color:#1E40AF; background:#DBEAFE; padding:2px 8px; border-radius:10px; flex-shrink:0; margin-left:4px; white-space:nowrap; }
+
+.summary-header { padding:16px 16px 12px; border-bottom:0.5px solid rgba(0,0,0,0.06); }
+.summary-title { font-size:15px; font-weight:800; color:#1C1C1E; }
+.summary-body { padding:14px 16px; }
+.sum-sec-title { font-size:12px; font-weight:800; color:#6C6C70; margin-bottom:10px; }
+.sum-item { display:flex; gap:10px; padding:8px 0; border-bottom:0.5px solid rgba(0,0,0,0.04); font-size:13px; color:#1C1C1E; line-height:1.6; }
+.sum-item:last-child { border-bottom:none; }
+.sum-num { font-size:13px; font-weight:700; color:#1D9E75; min-width:18px; flex-shrink:0; }
+
+.setting-section { margin-bottom:12px; }
+.setting-label { font-size:12px; font-weight:700; color:#6C6C70; margin-bottom:6px; padding-left:4px; }
+.setting-btn { width:100%; padding:14px 16px; border-radius:14px; background:#fff; border:none; font-size:14px; font-weight:600; color:#1C1C1E; cursor:pointer; font-family:inherit; text-align:left; display:flex; align-items:center; gap:12px; box-shadow:0 1px 4px rgba(0,0,0,0.07); margin-bottom:8px; }
+.setting-btn:active { background:#F2F2F7; }
+.setting-btn .sicon { font-size:20px; flex-shrink:0; }
+.setting-btn .sdesc { font-size:12px; color:#6C6C70; margin-top:2px; }
+.setting-btn.danger  { color:#DC2626; }
+.setting-btn.warning { color:#D97706; }
+.tmpl-item { display:flex; align-items:center; padding:11px 16px; gap:10px; border-bottom:0.5px solid rgba(0,0,0,0.06); }
+.tmpl-item:last-child { border-bottom:none; }
+.tmpl-time { font-size:12px; font-weight:700; color:#1E40AF; background:#DBEAFE; border-radius:7px; padding:2px 8px; min-width:46px; text-align:center; flex-shrink:0; }
+.tmpl-name { flex:1; font-size:14px; font-weight:600; color:#1C1C1E; }
+.del-btn { width:26px; height:26px; border-radius:50%; background:#FEE2E2; color:#DC2626; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0; }
+.del-btn:active { background:#FECACA; }
+.custom-item { display:flex; align-items:center; padding:11px 16px; gap:10px; border-bottom:0.5px solid rgba(0,0,0,0.06); }
+.custom-item:last-child { border-bottom:none; }
+.custom-name { flex:1; font-size:14px; font-weight:600; color:#1C1C1E; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none; align-items:flex-end; justify-content:center; z-index:100; }
+.modal-overlay.open { display:flex; }
+.modal { background:#fff; border-radius:24px 24px 0 0; padding:20px 18px max(32px,env(safe-area-inset-bottom)); width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
+.modal-handle { width:36px; height:4px; background:#D1D1D6; border-radius:2px; margin:0 auto 18px; }
+.modal-title  { font-size:17px; font-weight:800; color:#1C1C1E; margin-bottom:14px; }
+.field { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+.field label { font-size:12px; color:#6C6C70; font-weight:700; }
+.field input { padding:13px 14px; border-radius:12px; border:1.5px solid #E5E5EA; background:#F9F9F9; font-size:15px; color:#1C1C1E; font-family:inherit; outline:none; }
+.field input:focus { border-color:#1D9E75; background:#fff; }
+.modal-actions { display:flex; gap:10px; margin-top:16px; }
+.btn-cancel  { flex:1; padding:14px; border-radius:14px; border:1.5px solid #E5E5EA; background:#F2F2F7; font-size:15px; font-weight:700; cursor:pointer; color:#6C6C70; font-family:inherit; }
+.btn-confirm { flex:2; padding:14px; border-radius:14px; background:#1D9E75; color:#fff; border:none; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-confirm:active { background:#0F6E56; }
+
+/* LINE Modal */
+.line-modal-body { text-align:center; padding:6px 0 4px; }
+.line-modal-icon  { font-size:44px; margin-bottom:12px; }
+.line-modal-title { font-size:18px; font-weight:800; color:#1C1C1E; margin-bottom:6px; }
+.line-modal-meal  { font-size:15px; font-weight:700; color:#1D9E75; margin-bottom:6px; }
+.line-modal-hint  { font-size:13px; color:#6C6C70; line-height:1.7; margin-bottom:20px; background:#F2F2F7; border-radius:12px; padding:12px 14px; text-align:left; }
+.line-modal-hint b { color:#1C1C1E; }
+.btn-line { width:100%; padding:15px; border-radius:14px; background:#06C755; color:#fff; border:none; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:8px; }
+.btn-line:active { background:#05A847; }
+.btn-line-done { width:100%; padding:14px; border-radius:14px; background:#D1FAE5; color:#065F46; border:none; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-line-done:active { background:#A7F3D0; }
+
+.pw-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:200; padding:24px; }
+.pw-overlay.open { display:flex; }
+.pw-box { background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:320px; }
+.pw-title { font-size:17px; font-weight:800; color:#1C1C1E; margin-bottom:6px; text-align:center; }
+.pw-sub   { font-size:13px; color:#6C6C70; text-align:center; margin-bottom:20px; white-space:pre-line; }
+.pw-input { width:100%; padding:14px; border-radius:12px; border:1.5px solid #E5E5EA; background:#F9F9F9; font-size:22px; font-weight:700; color:#1C1C1E; font-family:inherit; outline:none; text-align:center; letter-spacing:6px; }
+.pw-input:focus { border-color:#1D9E75; background:#fff; }
+.pw-error { font-size:13px; color:#DC2626; text-align:center; margin-top:8px; display:none; font-weight:600; }
+
+.alert-box { background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:340px; }
+.alert-icon  { font-size:36px; text-align:center; margin-bottom:10px; }
+.alert-title { font-size:17px; font-weight:800; color:#1C1C1E; text-align:center; margin-bottom:8px; }
+.alert-body  { font-size:14px; color:#6C6C70; text-align:center; line-height:1.7; }
+.alert-stat  { font-size:28px; font-weight:800; text-align:center; margin:10px 0; color:#EF4444; }
+.alert-items { background:#FEF3C7; border-radius:12px; padding:12px 14px; margin:12px 0; }
+.alert-item  { font-size:13px; color:#92400E; padding:3px 0; border-bottom:0.5px solid rgba(146,64,14,0.15); }
+.alert-item:last-child { border-bottom:none; }
+.btn-alert-ok { width:100%; padding:14px; border-radius:14px; background:#1D9E75; color:#fff; border:none; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:16px; }
+
+.toast { position:fixed; top:70px; left:50%; transform:translateX(-50%); background:#1C1C1E; color:#fff; padding:10px 22px; border-radius:22px; font-size:13px; font-weight:600; z-index:999; opacity:0; transition:opacity 0.25s; white-space:nowrap; pointer-events:none; }
+.toast.show { opacity:1; }
+.empty-hint { padding:40px; text-align:center; color:#8E8E93; font-size:14px; line-height:2.2; }
+</style>
+</head>
+<body>
+
+<div id="role-screen">
+  <div class="role-title">📋 家護作息表</div>
+  <div class="role-subtitle">請選擇你的身份進入</div>
+  <div class="role-cards">
+    <div class="role-card employer" id="btn-employer">
+      <div class="role-icon">👤</div>
+      <div>
+        <div class="role-name">雇主</div>
+        <div class="role-desc">管理每日作息範本、查看紀錄</div>
+        <div class="lock-hint">🔒 需要密碼</div>
+      </div>
+    </div>
+    <div class="role-card caregiver" id="btn-caregiver">
+      <div class="role-icon">🤲</div>
+      <div>
+        <div class="role-name">看護</div>
+        <div class="role-desc">查看今日任務、勾選完成</div>
+        <div class="lock-hint">🔒 需要密碼</div>
+        <div class="lang-row">
+          <button class="lang-btn sel" data-lang="id">🇮🇩 印尼</button>
+          <button class="lang-btn" data-lang="ph">🇵🇭 菲律賓</button>
+          <button class="lang-btn" data-lang="vn">🇻🇳 越南</button>
+          <button class="lang-btn" data-lang="th">🇹🇭 泰國</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:12px;color:#8E8E93;text-align:center;line-height:1.8;">選擇後自動記住身份，下次直接進入<br>點右上角身份標籤可切換</div>
+</div>
+
+<div id="app-screen">
+  <div class="header">
+    <div>
+      <div class="header-title">📋 作息表</div>
+      <div class="header-sub" id="header-sub"></div>
+    </div>
+    <div class="header-right">
+      <div class="offline-dot" id="offline-dot"></div>
+      <span class="done-badge" id="done-count">—</span>
+      <span class="role-badge" id="header-role"></span>
+    </div>
+  </div>
+
+  <div class="progress-bar-area">
+    <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+    <div class="prog-pct" id="prog-pct" style="color:#8E8E93;">0%</div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="today">今日作息</button>
+    <button class="tab-btn" data-tab="history">完成紀錄</button>
+    <button class="tab-btn" data-tab="summary">工作說明</button>
+    <button class="tab-btn" data-tab="settings" id="tab-settings" style="display:none">設定</button>
+  </div>
+
+  <div class="content">
+    <div class="page active" id="page-today">
+      <div class="card"><div id="task-list"><div class="empty-hint">連線中…</div></div></div>
+    </div>
+    <div class="page" id="page-history">
+      <div class="card"><div id="history-list"><div class="empty-hint">載入中…</div></div></div>
+    </div>
+    <div class="page" id="page-summary">
+      <div class="card">
+        <div class="summary-header"><div class="summary-title">📋 工作說明 / Deskripsi Pekerjaan</div></div>
+        <div class="summary-body">
+          <div class="sum-sec-title">工作內容 / Isi Pekerjaan</div>
+          <div class="sum-item"><span class="sum-num">1.</span><span>Harus belajar sedikit tentang perawatan kesehatan.<br><span style="color:#6C6C70;font-size:12px;">需要學習基本照護知識</span></span></div>
+          <div class="sum-item"><span class="sum-num">2.</span><span>Saat merawat nenek, akan membersihkan kotoran dan urin nenek.<br><span style="color:#6C6C70;font-size:12px;">照顧阿嬤時需清潔大小便</span></span></div>
+          <div class="sum-item"><span class="sum-num">3.</span><span>Memasak makanan untuk nenek. Setiap hari menyiapkan 3 kali makan, foto makanan lalu kirim ke grup supaya majikan tahu.<br><span style="color:#6C6C70;font-size:12px;">每天煮三餐，拍照傳群組讓雇主知道</span></span></div>
+          <div class="sum-item"><span class="sum-num">4.</span><span>Hari Senin sampai Jumat, siang hari tidak boleh pakai handphone untuk telepon atau chat.<br><span style="color:#6C6C70;font-size:12px;">週一至週五白天不可用手機打電話或聊天</span></span></div>
+          <div class="sum-item"><span class="sum-num">5.</span><span>Di kamar ada kamera untuk melihat nenek, tetapi tidak merekam kamu.<br><span style="color:#6C6C70;font-size:12px;">房間有攝影機監看阿嬤，不會錄到你</span></span></div>
+          <div class="sum-item"><span class="sum-num">6.</span><span>Setiap 2–3 jam harus ganti popok nenek. Jaga kamar, toilet, dan dapur tetap bersih dan tidak bau.<br><span style="color:#6C6C70;font-size:12px;">每2-3小時換尿布，保持房間廁所廚房清潔無異味</span></span></div>
+          <div class="sum-item"><span class="sum-num">7.</span><span>Setiap hari membantu pijat nenek minimal 1 jam.<br><span style="color:#6C6C70;font-size:12px;">每天幫阿嬤按摩至少1小時</span></span></div>
+          <div class="sum-item"><span class="sum-num">8.</span><span>Jika ingin libur, harus memberi tahu majikan 10 hari sebelumnya.<br><span style="color:#6C6C70;font-size:12px;">如需請假，請提前10天告知雇主</span></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="page" id="page-settings">
+      <div class="setting-section">
+        <div class="setting-label">任務管理</div>
+        <button class="setting-btn" id="btn-add-from-settings"><span class="sicon">➕</span><div><div>新增今日任務</div><div class="sdesc">新增作息、管理快捷、查看刪除範本</div></div></button>
+        <button class="setting-btn warning" id="btn-reapply"><span class="sicon">🔄</span><div><div>重新套用範本到今天</div><div class="sdesc">補齊今日缺少的任務，已完成的不受影響</div></div></button>
+      </div>
+      <div class="setting-section">
+        <div class="setting-label">範本匯出／匯入</div>
+        <button class="setting-btn" id="btn-export"><span class="sicon">📤</span><div><div>匯出目前範本</div><div class="sdesc">儲存為 .json 檔案備份</div></div></button>
+        <button class="setting-btn" id="btn-import-trigger"><span class="sicon">📥</span><div><div>匯入範本</div><div class="sdesc">從 .json 檔案還原範本</div></div></button>
+        <input type="file" id="btn-import" accept=".json" style="display:none">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增任務 Modal -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">任務管理</div>
+
+    <!-- 分頁切換 -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="mgmt-tab active" data-mtab="add" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #1D9E75;background:#1D9E75;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">新增任務</button>
+      <button class="mgmt-tab" data-mtab="shortcuts" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#6C6C70;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">自訂快捷</button>
+      <button class="mgmt-tab" data-mtab="template" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#6C6C70;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">範本任務</button>
+    </div>
+
+    <!-- 新增任務 tab -->
+    <div id="mtab-add">
+      <div style="font-size:12px;color:#6C6C70;font-weight:700;margin-bottom:8px;">內建快捷</div>
+      <div class="shortcuts-wrap" id="builtin-shortcuts"></div>
+      <div style="font-size:12px;color:#4338CA;font-weight:700;margin-bottom:8px;margin-top:4px;">自訂快捷</div>
+      <div class="shortcuts-wrap" id="custom-shortcuts-wrap"></div>
+      <div class="field" style="margin-top:6px;"><label>任務名稱</label><input id="input-task-name" placeholder="例：早餐、翻身、服藥…"></div>
+      <div class="field"><label>時間</label><input id="input-task-time" type="time"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="btn-modal-cancel">取消</button>
+        <button class="btn-confirm" id="btn-modal-confirm">確認新增</button>
+      </div>
+    </div>
+
+    <!-- 自訂快捷 tab -->
+    <div id="mtab-shortcuts" style="display:none;">
+      <div class="card" id="custom-list" style="margin-bottom:14px;"></div>
+      <div class="field"><label>新增自訂快捷名稱</label><input id="input-custom-name" placeholder="例：泡腳、剪指甲…"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="btn-modal-cancel2">關閉</button>
+        <button class="btn-confirm" id="btn-add-custom">新增</button>
+      </div>
+    </div>
+
+    <!-- 範本任務 tab -->
+    <div id="mtab-template" style="display:none;">
+      <div class="card" id="tmpl-list" style="margin-bottom:14px;"></div>
+      <div class="modal-actions">
+        <button class="btn-confirm" id="btn-modal-cancel3" style="flex:1">關閉</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LINE 照片 Modal -->
+<div class="modal-overlay" id="line-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="line-modal-body">
+      <div class="line-modal-icon">📷</div>
+      <div class="line-modal-title">傳照片給雇主</div>
+      <div class="line-modal-meal" id="line-modal-meal"></div>
+      <div class="line-modal-hint">
+        <b>操作步驟：</b><br>
+        1. 點下方「開啟 LINE」<br>
+        2. 選擇雇主或群組<br>
+        3. 點相機圖示拍照或選相簿<br>
+        4. 傳送後回來點「已傳完」
+      </div>
+      <button class="btn-line" id="btn-open-line">💬　開啟 LINE</button>
+      <button class="btn-line-done" id="btn-line-done">✅　已傳完，記錄完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 密碼 Modal -->
+<div class="pw-overlay" id="pw-modal">
+  <div class="pw-box">
+    <div class="pw-title" id="pw-title">🔒 登入</div>
+    <div class="pw-sub"  id="pw-sub">請輸入密碼</div>
+    <input class="pw-input" id="pw-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
+    <div class="pw-error" id="pw-error">密碼錯誤，請再試一次</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn-cancel" id="pw-cancel">取消</button>
+      <button class="btn-confirm" id="pw-confirm">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- 昨日提醒 -->
+<div class="pw-overlay" id="alert-modal">
+  <div class="alert-box">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-title">昨日任務未全部完成</div>
+    <div class="alert-body">以下任務昨天未完成：</div>
+    <div class="alert-stat" id="alert-stat">—</div>
+    <div class="alert-items" id="alert-items"></div>
+    <button class="btn-alert-ok" id="btn-alert-ok">我知道了</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, onSnapshot, query, orderBy, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyB2WSssR7OrlfAJmojQTe9FTuhE0M7MsY4",
+  authDomain:"grandma-743f1.firebaseapp.com",
+  projectId:"grandma-743f1",
+  storageBucket:"grandma-743f1.firebasestorage.app",
+  messagingSenderId:"93019327356",
+  appId:"1:93019327356:web:f0103a8e569770c0cf32f9"
+};
+const PW_EMPLOYER  = "887766";
+const PW_CAREGIVER = "1003";
+
+// ── 只有這兩個任務顯示 📷 按鈕 ──
+const PHOTO_TASKS = ["餵飯吃藥", "公園散步"];
+
+const DEFAULT_TEMPLATE = [
+  {time:"06:00",name:"換尿布"},{time:"06:30",name:"煮早餐"},
+  {time:"07:00",name:"餵飯吃藥"},{time:"07:30",name:"洗衣服"},
+  {time:"08:00",name:"換尿布"},{time:"08:30",name:"掃地"},
+  {time:"09:00",name:"倒垃圾"},{time:"09:30",name:"曬衣服"},
+  {time:"10:00",name:"換尿布"},{time:"10:30",name:"按摩復健"},
+  {time:"11:00",name:"浴室清潔"},{time:"11:30",name:"煮午餐"},
+  {time:"12:00",name:"餵飯吃藥"},{time:"12:30",name:"換尿布"},
+  {time:"13:30",name:"打掃房間"},{time:"14:00",name:"換尿布"},
+  {time:"15:00",name:"按摩復健"},{time:"16:00",name:"公園散步"},
+  {time:"17:00",name:"奶奶洗澡"},{time:"17:30",name:"煮晚餐"},
+  {time:"18:00",name:"餵飯吃藥"},{time:"18:30",name:"清潔廚房冰箱"},
+  {time:"20:00",name:"換尿布"},{time:"22:00",name:"換尿布"},
+];
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+const TRANS = {
+  "起床":{id:"Bangun tidur",ph:"Gumising",vn:"Thức dậy",th:"ตื่นนอน"},
+  "煮早餐":{id:"Masak sarapan",ph:"Magluto ng almusal",vn:"Nấu sáng",th:"ทำอาหารเช้า"},
+  "煮午餐":{id:"Masak makan siang",ph:"Magluto ng tanghalian",vn:"Nấu trưa",th:"ทำอาหารกลางวัน"},
+  "煮晚餐":{id:"Masak makan malam",ph:"Magluto ng hapunan",vn:"Nấu tối",th:"ทำอาหารเย็น"},
+  "餵飯":{id:"Suapi makan",ph:"Pakainin",vn:"Đút ăn",th:"ป้อนข้าว"},
+  "餵藥":{id:"Beri obat",ph:"Magbigay ng gamot",vn:"Cho uống thuốc",th:"ให้ยา"},
+  "餵飯吃藥":{id:"Suapi dan beri obat",ph:"Pakainin at bigyan ng gamot",vn:"Đút ăn và uống thuốc",th:"ป้อนข้าวและให้ยา"},
+  "換尿布":{id:"Ganti popok",ph:"Palitan ng diapers",vn:"Thay tã",th:"เปลี่ยนผ้าอ้อม"},
+  "檢查換尿布":{id:"Cek dan ganti popok",ph:"Tingnan at palitan ng diapers",vn:"Kiểm tra thay tã",th:"ตรวจและเปลี่ยนผ้าอ้อม"},
+  "翻身":{id:"Balik posisi",ph:"Pag-ikot",vn:"Trở mình",th:"พลิกตัว"},
+  "掃地":{id:"Sapu lantai",ph:"Magwalis",vn:"Quét nhà",th:"กวาดบ้าน"},
+  "倒垃圾":{id:"Buang sampah",ph:"Mag-tapok ng basura",vn:"Đổ rác",th:"ทิ้งขยะ"},
+  "洗衣服":{id:"Cuci baju",ph:"Maglaba ng damit",vn:"Giặt quần áo",th:"ซักผ้า"},
+  "洗床單":{id:"Cuci sprei",ph:"Maglaba ng bedsheet",vn:"Giặt ga trải",th:"ซักผ้าปูที่นอน"},
+  "曬衣服":{id:"Jemur baju",ph:"Sampayan ng damit",vn:"Phơi quần áo",th:"ตากผ้า"},
+  "廁所清潔":{id:"Bersihkan kamar mandi",ph:"Linisin ang banyo",vn:"Dọn nhà vệ sinh",th:"ทำความสะอาดห้องน้ำ"},
+  "浴室清潔":{id:"Bersihkan kamar mandi",ph:"Linisin ang banyo",vn:"Dọn phòng tắm",th:"ทำความสะอาดห้องน้ำ"},
+  "廚房冰箱清潔":{id:"Bersihkan dapur/kulkas",ph:"Linisin ang kusina/ref",vn:"Dọn bếp và tủ lạnh",th:"ทำความสะอาดครัวและตู้เย็น"},
+  "清潔廚房冰箱":{id:"Bersihkan dapur/kulkas",ph:"Linisin ang kusina/ref",vn:"Dọn bếp và tủ lạnh",th:"ทำความสะอาดครัวและตู้เย็น"},
+  "打掃房間":{id:"Bersihkan kamar",ph:"Linisin ang kwarto",vn:"Dọn phòng",th:"ทำความสะอาดห้อง"},
+  "公園散步":{id:"Jalan di taman",ph:"Maglakad sa parke",vn:"Đi dạo công viên",th:"เดินเล่นในสวน"},
+  "按摩復健":{id:"Pijat rehabilitasi",ph:"Masahe at rehabilitasyon",vn:"Xoa bóp phục hồi",th:"นวดฟื้นฟู"},
+  "奶奶洗澡":{id:"Mandikan nenek",ph:"Paliguín ang lola",vn:"Tắm cho bà",th:"อาบน้ำให้ย่า"},
+  "洗澡":{id:"Mandi",ph:"Maligo",vn:"Tắm",th:"อาบน้ำ"},
+  "服藥":{id:"Minum obat",ph:"Uminom ng gamot",vn:"Uống thuốc",th:"ทานยา"},
+  "擦澡":{id:"Lap badan",ph:"Punasan",vn:"Lau người",th:"เช็ดตัว"},
+  "睡前翻身":{id:"Balik sebelum tidur",ph:"Ikot bago matulog",vn:"Trở trước ngủ",th:"พลิกตัวก่อนนอน"},
+  "就寢":{id:"Tidur malam",ph:"Matulog",vn:"Đi ngủ",th:"เข้านอน"},
+};
+const BUILTIN_NAMES = Object.keys(TRANS);
+
+const $ = id => document.getElementById(id);
+const todayKey     = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const yesterdayKey = () => { const d=new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const fmtDate      = k => { const d=new Date(k+'T00:00:00'),days=['日','一','二','三','四','五','六']; return `${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`; };
+
+let ROLE='', LANG='id', selectedLang='id';
+let unsubTasks=null, unsubCustom=null, pendingPwAction=null;
+let customShortcuts=[], todayCache=[];
+let curPhotoTaskId='', curPhotoTaskName='';
+
+window.addEventListener('online',  ()=>$('offline-dot').classList.remove('show'));
+window.addEventListener('offline', ()=>{ $('offline-dot').classList.add('show'); showToast('網路已斷線',true); });
+
+document.querySelectorAll('.lang-btn').forEach(btn=>{
+  btn.addEventListener('click',e=>{ e.stopPropagation(); selectedLang=btn.dataset.lang;
+    document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); });
+});
+
+$('btn-employer').addEventListener('click',()=>{ pendingPwAction=()=>enterApp('employer',selectedLang); openPw('🔒 雇主登入','請輸入雇主密碼',PW_EMPLOYER); });
+$('btn-caregiver').addEventListener('click',()=>{ pendingPwAction=()=>enterApp('caregiver',selectedLang); openPw('🔒 看護登入','請輸入看護密碼',PW_CAREGIVER); });
+$('header-role').addEventListener('click',()=>{ localStorage.removeItem('halo_role'); location.reload(); });
+
+let curPwExp='';
+function openPw(title,sub,exp){ curPwExp=exp; $('pw-title').textContent=title; $('pw-sub').textContent=sub; $('pw-input').value=''; $('pw-error').style.display='none'; $('pw-modal').classList.add('open'); setTimeout(()=>$('pw-input').focus(),100); }
+function closePw(){ $('pw-modal').classList.remove('open'); }
+$('pw-cancel').addEventListener('click',()=>{ closePw(); pendingPwAction=null; });
+$('pw-confirm').addEventListener('click',checkPw);
+$('pw-input').addEventListener('keydown',e=>{ if(e.key==='Enter') checkPw(); });
+function checkPw(){ if($('pw-input').value===curPwExp){ closePw(); if(pendingPwAction){ pendingPwAction(); pendingPwAction=null; } } else{ $('pw-error').style.display='block'; $('pw-input').value=''; $('pw-input').focus(); } }
+
+function enterApp(role,lang){ ROLE=role; LANG=lang||'id'; localStorage.setItem('halo_role',ROLE); localStorage.setItem('halo_lang',LANG); $('role-screen').style.display='none'; $('app-screen').style.display='flex'; init(); }
+
+async function init(){
+  ROLE=localStorage.getItem('halo_role'); LANG=localStorage.getItem('halo_lang')||'id';
+  renderHeader(); setupTabs();
+  if(ROLE==='employer'){ $('tab-settings').style.display='block'; setupAddTask(); setupSettings(); listenCustomShortcuts(); await checkYesterdayAlert(); }
+  setupLineModal();
+  updateDate(); setInterval(updateDate,60000);
+  await applyTemplateIfNeeded(); listenTasks();
+}
+
+function updateDate(){ const d=new Date(),days=['日','一','二','三','四','五','六']; $('header-sub').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`; }
+function renderHeader(){ const b=$('header-role'); b.textContent=ROLE==='employer'?'雇主':'看護'; b.style.background=ROLE==='employer'?'#DBEAFE':'#D1FAE5'; b.style.color=ROLE==='employer'?'#1E40AF':'#065F46'; }
+
+async function checkYesterdayAlert(){
+  const snap=await getDocs(collection(db,'days',yesterdayKey(),'tasks')); if(snap.empty) return;
+  const tasks=[]; snap.forEach(d=>tasks.push(d.data()));
+  const missed=tasks.filter(t=>!t.done); if(missed.length===0) return;
+  const pct=Math.round((tasks.length-missed.length)/tasks.length*100);
+  $('alert-stat').textContent=`昨日完成 ${pct}%`;
+  const c=$('alert-items'); c.innerHTML='';
+  missed.slice(0,8).forEach(t=>{ const div=document.createElement('div'); div.className='alert-item'; div.textContent=`${t.time}　${t.name}`; c.appendChild(div); });
+  if(missed.length>8){ const div=document.createElement('div'); div.className='alert-item'; div.textContent=`…還有 ${missed.length-8} 項未完成`; c.appendChild(div); }
+  $('alert-modal').classList.add('open');
+  $('btn-alert-ok').addEventListener('click',()=>$('alert-modal').classList.remove('open'),{once:true});
+}
+
+function setupTabs(){
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active'); $('page-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab==='history') loadHistory();
+    });
+  });
+}
+
+async function applyTemplateIfNeeded(){ const snap=await getDocs(collection(db,'days',todayKey(),'tasks')); if(!snap.empty) return; await applyTemplate(); }
+async function applyTemplate(){
+  const tmpl=await getDocs(query(collection(db,'template','tasks','items'),orderBy('time')));
+  const items=[];
+  if(!tmpl.empty){ tmpl.forEach(d=>items.push(d.data())); }
+  else{ DEFAULT_TEMPLATE.forEach(i=>items.push(i)); const b=writeBatch(db); DEFAULT_TEMPLATE.forEach((item,i)=>b.set(doc(collection(db,'template','tasks','items'),`${item.time.replace(':','')}${i}`),item)); await b.commit(); }
+  const b2=writeBatch(db);
+  items.forEach((item,i)=>b2.set(doc(db,'days',todayKey(),'tasks',`${item.time.replace(':','')}${i}${Date.now()}`),{name:item.name,time:item.time,done:false,doneAt:'',photoUploaded:false,createdAt:new Date().toISOString()}));
+  await b2.commit();
+}
+async function syncTemplate(name,time,action){
+  const col=collection(db,'template','tasks','items');
+  if(action==='add'){ await setDoc(doc(col,`${time.replace(':','')}${Date.now()}`),{name,time}); }
+  else{ const snap=await getDocs(col); const b=writeBatch(db); snap.forEach(d=>{ if(d.data().name===name&&d.data().time===time) b.delete(d.ref); }); await b.commit(); }
+}
+
+function listenTasks(){
+  if(unsubTasks) unsubTasks();
+  unsubTasks=onSnapshot(query(collection(db,'days',todayKey(),'tasks'),orderBy('time')),snap=>{ todayCache=[]; snap.forEach(d=>todayCache.push({id:d.id,...d.data()})); renderTasks(todayCache); updateProgress(); },err=>{ console.error(err); showToast('連線失敗',true); });
+}
+
+function updateProgress(){
+  const done=todayCache.filter(t=>t.done).length, total=todayCache.length;
+  const pct=total>0?Math.round(done/total*100):0;
+  const color=pct===100?'#1D9E75':pct>=50?'#F59E0B':'#EF4444';
+  $('prog-bar').style.width=pct+'%'; $('prog-bar').style.background=pct===0?'#F2F2F7':color;
+  $('prog-pct').textContent=pct+'%'; $('prog-pct').style.color=pct===0?'#8E8E93':color;
+  $('done-count').textContent=`${done} / ${total}`;
+  $('done-count').style.background=pct===100?'#D1FAE5':'#FEF3C7';
+  $('done-count').style.color=pct===100?'#065F46':'#92400E';
+}
+
+function renderTasks(tasks){
+  const list=$('task-list'); list.innerHTML='';
+  if(tasks.length===0){ list.innerHTML=`<div class="empty-hint">${ROLE==='employer'?'尚無任務<br>到「設定」新增':'今日尚無任務<br>請等候雇主設定'}</div>`; return; }
+  tasks.forEach(task=>{
+    const trans=TRANS[task.name]?.[LANG]||'';
+    const isPhotoTask = PHOTO_TASKS.includes(task.name) && ROLE==='caregiver';
+    const row=document.createElement('div');
+    row.className='task-row'+(task.done?' done':'');
+    row.innerHTML=`
+      <div class="time-pill">${task.time}</div>
+      <div class="task-info">
+        <div class="task-name">${task.name}</div>
+        ${trans?`<div class="task-trans">${trans}</div>`:''}
+      </div>
+      <div class="task-done-time ${task.doneAt?'':'miss'}">${task.doneAt||'未完成'}</div>
+      ${isPhotoTask?`<div class="photo-btn" data-id="${task.id}" data-name="${task.name}">📷</div>`:''}
+      ${ROLE==='caregiver'?`<div class="task-check ${task.done?'checked':''}" data-id="${task.id}">${task.done?'✓':''}</div>`:''}
+    `;
+    if(isPhotoTask){
+      row.querySelector('.photo-btn').addEventListener('click',()=>{
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        if (isIOS) {
+          window.location.href = 'line://';
+        } else if (isAndroid) {
+          window.location.href = 'jp.naver.line.android://';
+        } else {
+          window.open('https://line.me', '_blank');
+        }
+      });
+    }
+    if(ROLE==='caregiver'){
+      row.querySelector('.task-check').addEventListener('click',()=>{
+        if(task.done) return;
+        pendingPwAction=async()=>{
+          const now=new Date(); const t=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+          await setDoc(doc(db,'days',todayKey(),'tasks',task.id),{done:true,doneAt:t},{merge:true}); showToast('已記錄完成 ✓');
+        };
+        openPw('✓ 確認完成',`「${task.name}」已完成？\n請輸入看護密碼`,PW_CAREGIVER);
+      });
+    }
+    list.appendChild(row);
+  });
+}
+
+// ── LINE Modal ──
+function setupLineModal(){
+  // 開啟 LINE → 跳到選擇聯絡人畫面
+  $('btn-open-line').addEventListener('click',()=>{
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    const dateStr = `${now.getMonth()+1}月${now.getDate()}日`;
+    const msg = encodeURIComponent(`📷 ${curPhotoTaskName}\n${dateStr} ${timeStr}\n請查收照片`);
+    window.open(`https://line.me/R/share?text=${msg}`, '_blank');
+  });
+  // 已傳完 → 記錄 Firebase
+  $('btn-line-done').addEventListener('click',async()=>{
+    await setDoc(doc(db,'days',todayKey(),'tasks',curPhotoTaskId),{photoUploaded:true},{merge:true});
+    showToast('已記錄照片傳送 ✅');
+    $('line-modal').classList.remove('open');
+    curPhotoTaskId=''; curPhotoTaskName='';
+  });
+  $('line-modal').addEventListener('click',e=>{ if(e.target===$('line-modal')) $('line-modal').classList.remove('open'); });
+}
+
+function openLineModal(taskId, taskName, taskTime){
+  curPhotoTaskId=taskId; curPhotoTaskName=taskName;
+  const labelMap = {'餵飯吃藥':'餵飯吃藥 Suapi & Obat','公園散步':'公園散步 Jalan di Taman'};
+  $('line-modal-meal').textContent=`${labelMap[taskName]||taskName}　${taskTime}`;
+  $('line-modal').classList.add('open');
+}
+
+// ── 新增任務（含分頁管理）──
+function setupAddTask(){
+  // 分頁切換
+  document.querySelectorAll('.mgmt-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.mgmt-tab').forEach(b=>{ b.style.background='#F2F2F7'; b.style.color='#6C6C70'; b.style.borderColor='#E5E5EA'; });
+      btn.style.background='#1D9E75'; btn.style.color='#fff'; btn.style.borderColor='#1D9E75';
+      ['add','shortcuts','template'].forEach(t=>{ document.getElementById('mtab-'+t).style.display='none'; });
+      document.getElementById('mtab-'+btn.dataset.mtab).style.display='block';
+      if(btn.dataset.mtab==='template') loadTmplList();
+      if(btn.dataset.mtab==='shortcuts') renderCustomList();
+    });
+  });
+  function openAddModal(){
+    const now=new Date(); const hh=now.getHours().toString().padStart(2,'0'); const mm=(Math.round(now.getMinutes()/15)*15%60).toString().padStart(2,'0');
+    $('input-task-time').value=`${hh}:${mm}`; $('input-task-name').value='';
+    document.querySelectorAll('.mgmt-tab').forEach(b=>{ b.style.background='#F2F2F7'; b.style.color='#6C6C70'; b.style.borderColor='#E5E5EA'; });
+    const firstTab=document.querySelector('.mgmt-tab[data-mtab="add"]');
+    firstTab.style.background='#1D9E75'; firstTab.style.color='#fff'; firstTab.style.borderColor='#1D9E75';
+    $('mtab-add').style.display='block'; $('mtab-shortcuts').style.display='none'; $('mtab-template').style.display='none';
+    renderShortcutsInModal(); $('add-modal').classList.add('open'); $('input-task-name').focus();
+  }
+  $('btn-add-from-settings').addEventListener('click',openAddModal);
+  $('btn-modal-cancel').addEventListener('click',()=>$('add-modal').classList.remove('open'));
+  $('btn-modal-cancel2').addEventListener('click',()=>$('add-modal').classList.remove('open'));
+  $('btn-modal-cancel3').addEventListener('click',()=>$('add-modal').classList.remove('open'));
+  $('add-modal').addEventListener('click',e=>{ if(e.target===$('add-modal')) $('add-modal').classList.remove('open'); });
+  $('btn-modal-confirm').addEventListener('click',addTask);
+  $('input-task-name').addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
+  const wrap=$('builtin-shortcuts');
+  BUILTIN_NAMES.forEach(name=>{ const btn=document.createElement('button'); btn.className='shortcut-btn'; btn.textContent=name; btn.addEventListener('click',()=>{ $('input-task-name').value=name; }); wrap.appendChild(btn); });
+  $('btn-add-custom').addEventListener('click',async()=>{ const name=$('input-custom-name').value.trim(); if(!name){ showToast('請輸入名稱',true); return; } if(customShortcuts.includes(name)){ showToast('已存在',true); return; } customShortcuts.push(name); await saveCustomShortcuts(); $('input-custom-name').value=''; showToast(`「${name}」已新增 ✓`); });
+  $('input-custom-name').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btn-add-custom').click(); });
+}
+
+async function loadTmplList(){
+  const tList=$('tmpl-list'); tList.innerHTML='';
+  const tmpl=await getDocs(query(collection(db,'template','tasks','items'),orderBy('time')));
+  if(tmpl.empty){ tList.innerHTML='<div class="empty-hint" style="padding:20px;">範本是空的</div>'; return; }
+  tmpl.forEach(d=>{ const data=d.data(); const item=document.createElement('div'); item.className='tmpl-item'; item.innerHTML=`<div class="tmpl-time">${data.time}</div><div class="tmpl-name">${data.name}</div><div class="del-btn">✕</div>`; item.querySelector('.del-btn').addEventListener('click',async()=>{ if(!confirm(`確定從範本刪除「${data.name}」？`)) return; await deleteDoc(d.ref); item.remove(); showToast(`「${data.name}」已從範本刪除`); }); tList.appendChild(item); });
+}
+
+function renderShortcutsInModal(){ const wrap=$('custom-shortcuts-wrap'); wrap.innerHTML=''; if(customShortcuts.length===0){ wrap.innerHTML='<span style="font-size:12px;color:#9CA3AF;">尚無自訂快捷，切換到「自訂快捷」分頁新增</span>'; return; } customShortcuts.forEach(name=>{ const btn=document.createElement('button'); btn.className='shortcut-btn custom'; btn.textContent=name; btn.addEventListener('click',()=>{ $('input-task-name').value=name; }); wrap.appendChild(btn); }); }
+async function addTask(){ const name=$('input-task-name').value.trim(), time=$('input-task-time').value; if(!name){ showToast('請輸入任務名稱',true); return; } if(!time){ showToast('請選擇時間',true); return; } await setDoc(doc(db,'days',todayKey(),'tasks',`${time.replace(':','')}${Date.now()}`),{name,time,done:false,doneAt:'',photoUploaded:false,createdAt:new Date().toISOString()}); await syncTemplate(name,time,'add'); showToast(`「${name}」已新增並更新範本 ✓`); $('add-modal').classList.remove('open'); }
+
+function listenCustomShortcuts(){ if(unsubCustom) unsubCustom(); unsubCustom=onSnapshot(doc(db,'config','customShortcuts'),snap=>{ customShortcuts=snap.exists()?(snap.data().names||[]):[]; renderCustomList(); }); }
+async function saveCustomShortcuts(){ await setDoc(doc(db,'config','customShortcuts'),{names:customShortcuts}); }
+function renderCustomList(){ const list=$('custom-list'); if(!list) return; list.innerHTML=''; if(customShortcuts.length===0){ list.innerHTML='<div class="empty-hint" style="padding:20px;">尚無自訂快捷</div>'; return; } customShortcuts.forEach((name,idx)=>{ const item=document.createElement('div'); item.className='custom-item'; item.innerHTML=`<span class="custom-name">${name}</span><div class="del-btn">✕</div>`; item.querySelector('.del-btn').addEventListener('click',async()=>{ customShortcuts.splice(idx,1); await saveCustomShortcuts(); }); list.appendChild(item); }); }
+
+function setupSettings(){
+  $('btn-reapply').addEventListener('click',async()=>{
+    if(!confirm('確定重新套用範本到今天？\n今日所有任務將清除並重新建立為未完成狀態。')) return;
+    const snap=await getDocs(collection(db,'days',todayKey(),'tasks'));
+    const b=writeBatch(db); snap.forEach(d=>b.delete(d.ref)); await b.commit();
+    await applyTemplate();
+    showToast('已重新套用範本 ✓');
+  });
+  $('btn-export').addEventListener('click',async()=>{ const tmpl=await getDocs(query(collection(db,'template','tasks','items'),orderBy('time'))); const items=[]; tmpl.forEach(d=>items.push(d.data())); const data=JSON.stringify({version:1,exportedAt:new Date().toISOString(),template:items,customShortcuts},null,2); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/json'})); a.download=`家護範本_${todayKey()}.json`; a.click(); showToast('範本已匯出 ✓'); });
+  $('btn-import-trigger').addEventListener('click',()=>$('btn-import').click());
+  $('btn-import').addEventListener('change',async e=>{ const file=e.target.files[0]; if(!file) return; let data; try{ data=JSON.parse(await file.text()); }catch{ showToast('檔案格式錯誤',true); return; } if(!data.template||!Array.isArray(data.template)){ showToast('檔案內容無效',true); return; } if(!confirm(`確定匯入範本？\n共 ${data.template.length} 個任務，將覆蓋目前範本。`)) return; const old=await getDocs(collection(db,'template','tasks','items')); const b=writeBatch(db); old.forEach(d=>b.delete(d.ref)); data.template.forEach((item,i)=>b.set(doc(collection(db,'template','tasks','items'),`${item.time.replace(':','')}${i}`),{name:item.name,time:item.time})); await b.commit(); if(data.customShortcuts&&Array.isArray(data.customShortcuts)){ customShortcuts=data.customShortcuts; await saveCustomShortcuts(); } showToast(`已匯入 ${data.template.length} 個任務 ✓`); e.target.value=''; });
+}
+
+async function loadHistory(){
+  const list=$('history-list'); list.innerHTML='<div class="empty-hint">載入中…</div>';
+  const today=new Date(), todayStr=todayKey();
+  const keys=Array.from({length:30},(_,i)=>{ const d=new Date(today); d.setDate(today.getDate()-i); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
+  const results=await Promise.all(keys.map(async key=>{ const snap=await getDocs(collection(db,'days',key,'tasks')); const tasks=[]; snap.forEach(d=>tasks.push({id:d.id,...d.data()})); return{key,tasks}; }));
+  const hasData=results.some(r=>r.tasks.length>0);
+  if(!hasData){ list.innerHTML='<div class="empty-hint">近30天尚無紀錄</div>'; return; }
+  list.innerHTML='';
+  results.forEach(({key,tasks})=>{
+    if(tasks.length===0) return;
+    const isToday=key===todayStr, done=tasks.filter(t=>t.done).length, total=tasks.length;
+    const pct=Math.round(done/total*100), color=pct===100?'#1D9E75':pct>=50?'#F59E0B':'#EF4444';
+    const wrap=document.createElement('div');
+    wrap.innerHTML=`
+      <div class="history-row ${isToday?'today-row':''}">
+        <div class="history-date">${fmtDate(key)}${isToday?'<span class="today-tag">今天</span>':''}</div>
+        <div class="history-bar-wrap"><div class="history-bar" style="width:${pct}%;background:${color};"></div></div>
+        <div class="history-meta">${done} / ${total} 完成　${pct}%</div>
+      </div>
+      <div class="history-detail" id="detail-${key}">
+        ${tasks.sort((a,b)=>a.time.localeCompare(b.time)).map(t=>`
+          <div class="detail-row ${ROLE==='employer'?'detail-clickable':''}" data-key="${key}" data-tid="${t.id}" data-done="${t.done}">
+            <span class="detail-check">${t.done?'✅':'⬜'}</span>
+            <span>${t.time}　${t.name}</span>
+            <span class="detail-time ${t.done?'':'miss'}">${t.doneAt||'未完成'}</span>
+            ${t.photoUploaded?'<span style="font-size:13px;margin-left:4px;">📷</span>':''}
+            ${ROLE==='employer'?`<span class="detail-toggle">${t.done?'改為未完成':'改為完成'}</span>`:''}
+          </div>`).join('')}
+      </div>`;
+    wrap.querySelector('.history-row').addEventListener('click',()=>{
+      const detail = document.getElementById(`detail-${key}`);
+      detail.classList.toggle('open');
+      // 綁定雇主 review 點擊（只在展開時綁定一次）
+      if(detail.classList.contains('open') && ROLE==='employer'){
+        detail.querySelectorAll('.detail-clickable').forEach(row=>{
+          if(row.dataset.bound) return;
+          row.dataset.bound = '1';
+          row.addEventListener('click', async()=>{
+            const tid = row.dataset.tid;
+            const isDone = row.dataset.done === 'true';
+            const now = new Date();
+            const t = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            await setDoc(doc(db,'days',key,'tasks',tid),{ done:!isDone, doneAt:!isDone?t:'' },{merge:true});
+            showToast(isDone?'已改為未完成':'已改為完成 ✓');
+            // 重新載入歷史
+            loadHistory();
+          });
+        });
+      }
+    });
+    list.appendChild(wrap);
+  });
+}
+
+let toastTimer;
+function showToast(msg,isErr){ const t=$('toast'); t.textContent=msg; t.style.background=isErr?'#DC2626':'#1C1C1E'; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2500); }
+
+ROLE=localStorage.getItem('halo_role')||''; LANG=localStorage.getItem('halo_lang')||'id';
+if(ROLE){ $('role-screen').style.display='none'; $('app-screen').style.display='flex'; init(); }
+</script>
+</body>
+</html>
